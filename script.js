@@ -54,11 +54,11 @@ const APP = {
 
 		    background: {
 		    	color: APP.bgColor //grey
-		    }, 
+		    },
 
 
-		    gravity: { 
-		    	y: -200 
+		    gravity: {
+		    	y: -200
 		    },  // Physic gravity.
 
 		    camera: {
@@ -136,7 +136,7 @@ const APP = {
 			material: {
 				kind: 'phong',
 				color: APP.bgColor,
-				map: WHS.texture('textures/floor.png', {repeat: {y: 4, x: 10}}), 
+				map: WHS.texture('textures/floor.png', {repeat: {y: 4, x: 10}}),
 
 			},
 
@@ -190,7 +190,7 @@ const APP = {
 	},
 
 	addLights() {
-		APP.light1 = new WHS.PointLight({
+		APP.light = new WHS.PointLight({
 			light: {
 				distance: 300,
 				intensity: 1,
@@ -301,7 +301,7 @@ const APP = {
 				height: APP.basketY + 35
 			},
 
-			shadow: {cast: true}, 
+			shadow: {cast: true},
 
 			mass: 0,
 
@@ -407,7 +407,7 @@ const APP = {
 
 	    if (!APP.detectDoubleTap() && APP.controlsEnabled && !APP.thrown) {
 	      	const vector = new THREE.Vector3(
-	        	APP.force.xk * (APP.cursor.x - APP.cursor.xCenter), 
+	        	APP.force.xk * (APP.cursor.x - APP.cursor.xCenter),
 	        	APP.force.y * APP.force.m,
 	        	APP.force.z * APP.force.m
 	      	);
@@ -435,7 +435,7 @@ const APP = {
 
 	    APP.ball.position.set(x, y, 0);
 	}
-	  
+
 
 };
 
@@ -444,7 +444,7 @@ const EVENTS = {
     window.addEventListener('click', APP.throwBall);
     window.addEventListener('click', () => {
       const el = APP.world.getRenderer().domElement;
-      
+
       if (!el.fullscreenElement && APP.isMobile) {
         if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
         if (el.mozRequestFullscreen) el.mozRequestFullscreen();
@@ -486,7 +486,7 @@ const keep_ball = (APP) => {
     const BSpos = APP.basket.position
 
     if (BLpos.distanceTo(BSpos) < APP.basketGoalDiff
-      && Math.abs(BLpos.y - BSpos.y + APP.basketYDeep()) < APP.basketYGoalDiff() 
+      && Math.abs(BLpos.y - BSpos.y + APP.basketYDeep()) < APP.basketYGoalDiff()
       && !APP.goal) APP.onGoal(BLpos, BSpos);
   });
 }
