@@ -40,8 +40,8 @@ const APP = {
 	},
 
 	force: {
-		y: 7, // Kick ball Y force.
-    	z: -2, // Kick ball Z force.
+		y: 8, // Kick ball Y force.
+    	z: -2.5, // Kick ball Z force.
 	    m: 2400, // Multiplier for kick force.
 	    xk: 8 // Kick ball X force multiplier.
 	},
@@ -56,27 +56,20 @@ const APP = {
 		    	color: APP.bgColor //grey
 		    }, 
 
-		    //fog: {
-		    //	type: 'regular',
-		    //	hex: 0xffffff
-		    //},
 
 		    gravity: { 
 		    	y: -200 
 		    },  // Physic gravity.
 
 		    camera: {
-		      //position: {
-		        //x: 0,
 		        z: 80, // Move camera.
 		        y: 10, //APP.basketY/4,
 		        aspect: 45
-		      //}
 		    }
 		});
 
 		APP.camera = APP.world.getCamera();
-		APP.camera.lookAt(new THREE.Vector3(0, APP.basketY/2, -10));
+		APP.camera.lookAt(new THREE.Vector3(0, APP.basketY/2, -50));
 
 		APP.createScene();
 		APP.addLights();
@@ -143,13 +136,13 @@ const APP = {
 			material: {
 				kind: 'phong',
 				color: APP.bgColor,
-				map: WHS.texture('textures/floor.png', {repeat: {y: 4, x: 10}}), //offset: {y: 0.3}}),
+				map: WHS.texture('textures/floor.png', {repeat: {y: 4, x: 10}}), 
 
 			},
 
 			pos: {
 				y:-20,
-				z:120,
+				z:100,
 			},
 
 			rot: {
@@ -183,27 +176,23 @@ const APP = {
 			}
 		});
 
-		//APP.wall = APP.ground.clone();
-				//map: WHS.texture('textures/floor.png', {repeat: {y: 4, x: 10}}), //offset: {y: 0.3}}),
 
 		//APP.ground.__params.material.map = WHS.texture('textures/floor.png', {repeat: {y: 4, x: 10}});
 		APP.ground.addTo(APP.world);
 
-		//wall object
-		console.log(APP.wall);
-		//APP.ground.__params.material.map = 0;
+
 
 		APP.wall.position.y = 180;
-    	APP.wall.position.z = -APP.basketDistance;
+    	APP.wall.position.z = -APP.basketDistance-20;
     	APP.wall.rotation.x = 0;
     	APP.wall.addTo(APP.world);
 
 	},
 
 	addLights() {
-		new WHS.PointLight({
+		APP.light1 = new WHS.PointLight({
 			light: {
-				distance: 100,
+				distance: 300,
 				intensity: 1,
 				angle: Math.PI
 			},
@@ -217,16 +206,19 @@ const APP = {
 		        top: 50,
 		        bottom: -50,
 
-		        far: 80,
+		        far: 150,
 
 		        fov: 90,
 	      	},
 
 	      	pos: {
-	        	y: 60,
-	        	z: -40
+	      		x: 50,
+	        	y: 100,
+	        	z: 0
 	      	},
-	    }).addTo(APP.world);
+	    });
+
+	    APP.light.addTo(APP.world);
 
 		new WHS.AmbientLight({
 	      	light: {
@@ -308,6 +300,8 @@ const APP = {
 				depth: 2,
 				height: APP.basketY + 35
 			},
+
+			shadow: {cast: true}, 
 
 			mass: 0,
 
@@ -439,7 +433,7 @@ const APP = {
 	    const x = (cursor.x - cursor.xCenter) / window.innerWidth * 32;
 	    const y = - (cursor.y - cursor.yCenter) / window.innerHeight * 32;
 
-	    APP.ball.position.set(x, y, -36);
+	    APP.ball.position.set(x, y, 0);
 	}
 	  
 
@@ -500,7 +494,20 @@ const keep_ball = (APP) => {
 
 APP.init();
 
+console.log( APP.world);
 
+/*
+
+var canvas = document.getElementsByTagName('body');
+console.log(canvas);
+var para = document.createElement('p');//, 'para');
+var node = document.createTextNode("This is new.");
+para.appendChild(node);
+canvas.appendChild(para);
+//canvas.height = 80%;
+var ctx = canvas.getContext('2d');
+ctx.font = "30px Arial";
+ctx.fillText("Hello World", 0,0);
  // Start animations and physics simulation.
 
-
+*/
