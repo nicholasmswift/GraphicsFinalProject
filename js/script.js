@@ -102,6 +102,7 @@ function addScore(lvl){
 	dv.appendChild(br);
 	dv.appendChild(txt3);
 	dv.appendChild(br);
+	dv.appendChild(txt4);
 	body.appendChild(dv);
 }
 
@@ -794,6 +795,7 @@ const APP = {
 		    APP.ball.setAngularVelocity(vector); // Reset gravity affect.
 		    APP.thrown = true;
 				levelData[APP.currentLvlIndex].attempts++;
+				levelData[APP.currentLvlIndex].accuracy = levelData[APP.currentLvlIndex].attempts / levelData[APP.currentLvlIndex].baskets;
 				remScore();
 				addScore(APP.currentLvlIndex);
 	    }
@@ -814,6 +816,7 @@ const APP = {
 
 	onGoal(){
 		levelData[APP.currentLvlIndex].baskets++;
+		levelData[APP.currentLvlIndex].accuracy = levelData[APP.currentLvlIndex].attempts / levelData[APP.currentLvlIndex].baskets;
 		remScore();
 		addScore(APP.currentLvlIndex);
 	}
