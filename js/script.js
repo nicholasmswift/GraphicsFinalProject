@@ -133,19 +133,17 @@ function generateLevelTexture(levelData) {
   return texture;
 };
 
-function generateHUDTexture(data){
-	const hudCanvas = document.createElement('canvas');
-  hudCanvas.width = window.width;
-  hudCanvas.height = window.height;
-  const context = hudCanvas.getContext('2d');
+function getCameraAngle(){
+	var vector = new THREE.Vector3();
+	APP.camera.getWorldDirection(vector);
+	return vector;
+}
 
-	//const image = document.createElement('img');
-  //image.src = canvas.toDataURL();
-
-  var texture = new THREE.Texture(hudCanvas);
-  texture.needsUpdate = true;
-
-  return texture;
+function getCameraPos(){
+	var vector = new THREE.Vector3(APP.camera.x,APP.camera.y,APP.camera.z);
+	//APP.camera.getWorldDirection(vector);
+	return APP.camera.position;
+	//return 0;
 }
 
 //TODO:
@@ -181,7 +179,7 @@ const APP = {
 	thrown: false,
 	doubletap: false,
 	goal: false,
-	controlsEnabled: false,
+	controlsEnabled: true,
 	currentlyPlaying: false,
 
 	cursor: {
@@ -192,10 +190,11 @@ const APP = {
 	},
 
 	force: {
-		y: 8, // Kick ball Y force.
-    z: -2.5, // Kick ball Z force.
+		y: 8, // Kick ball Y force. (8)
+    z: -2.5, // Kick ball Z force. (-2.5) // FRONTWARD
 	  m: 2400, // Multiplier for kick force. (start 2400)
-	  xk: 8 // Kick ball X force multiplier.
+	  xk: 8 // Kick ball X force multiplier. (8) // L/R
+
 	},
 
 	hudHeight: 24,
@@ -218,11 +217,11 @@ const APP = {
 
 				// level 1 camera
 		    camera: {
-						x: 0,
-						y: 10, //APP.basketY/4,
-						z: 80, // Move camera.
+						x: 0, // (0)
+						y: 10, //APP.basketY/4, (10)
+						z: 80, // Move camera. (80)
 
-		        aspect: 45
+		        aspect: 45 //(45)
 		    }
 
 				// test camera
@@ -320,7 +319,18 @@ const APP = {
 					APP.world.remove(APP.hud);
 					APP.addHUD();
 				}
-
+			}
+			if(e.code === "KeyQ"){
+				console.log("HELP camera angle");
+				console.log(getCameraAngle());
+				console.log(getCameraPos());
+				console.log(Math.cos(getCameraAngle().x));
+				console.log(Math.sin(getCameraAngle().x));
+				/*console.log("HELP mouse position");
+				console.log(APP.cursor.x);
+				console.log(APP.cursor.xCenter);
+				console.log(APP.cursor.y);
+				console.log(APP.cursor.yCenter);*/
 			}
   	},
 
@@ -665,10 +675,22 @@ const APP = {
 	    e.preventDefault();
 
 	    if (!APP.detectDoubleTap() && APP.controlsEnabled && !APP.thrown) {
+				const ang = getCameraAngle();
+				const pos = getCameraPos();
+
+				const F_LR = APP.force.xk * (APP.cursor.x - APP.cursor.xCenter);
+				const F_UP = APP.force.y * APP.force.m;
+				const F_FORWARD = APP.force.z * APP.force.m;
+
+				const F_LR_ADJ = F_LR*Math.cos(ang.x) - F_FORWARD*Math.sin(ang.x);
+				const F_UP_ADJ = F_UP;
+				const F_FORWARD_ADJ = F_FORWARD*Math.cos(ang.x) - F_LR*Math.sin(ang.x);
+
 	    	const vector = new THREE.Vector3(
-	      	APP.force.xk * (APP.cursor.x - APP.cursor.xCenter),
-	      	APP.force.y * APP.force.m,
-	      	APP.force.z * APP.force.m
+	      	//APP.force.xk * (APP.cursor.x - APP.cursor.xCenter),
+	      	//APP.force.y * APP.force.m,
+	      	//APP.force.z * APP.force.m
+					F_LR_ADJ,F_UP_ADJ,F_FORWARD_ADJ
       	);
 
       	APP.ball.setLinearVelocity(new THREE.Vector3(0, 0, 0)); // Reset gravity affect.
@@ -688,12 +710,16 @@ const APP = {
 
 	keepBall() {
 	    const cursor = APP.cursor;
+			const ang = getCameraAngle();
+			const pos = getCameraPos();
 
-	    const x = (cursor.x - cursor.xCenter) / window.innerWidth * 32;
-	    const y = - (cursor.y - cursor.yCenter) / window.innerHeight * 32;
+	    //const x = (cursor.x - cursor.xCenter) / window.innerWidth * 32;
+	    //const y = - (cursor.y - cursor.yCenter) / window.innerHeight * 32;
+			const x = (cursor.x - cursor.xCenter) / window.innerWidth * 32;
+			const y = - (cursor.y - cursor.yCenter) / window.innerHeight * 32;
 
-	    APP.ball.position.set(x, y, 0);
-	}
+	    APP.ball.position.set(pos.x+80*Math.sin(ang.x)+x*Math.cos(ang.x), y, pos.z-80*Math.cos(ang.x)+x*Math.sin(ang.x));
+	},
 };
 
 const EVENTS = {
