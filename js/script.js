@@ -133,6 +133,21 @@ function generateLevelTexture(levelData) {
   return texture;
 };
 
+function generateHUDTexture(data){
+	const hudCanvas = document.createElement('canvas');
+  hudCanvas.width = window.width;
+  hudCanvas.height = window.height;
+  const context = hudCanvas.getContext('2d');
+
+	//const image = document.createElement('img');
+  //image.src = canvas.toDataURL();
+
+  var texture = new THREE.Texture(hudCanvas);
+  texture.needsUpdate = true;
+
+  return texture;
+}
+
 //TODO:
 //	In double click, reposition camera + ball
 //	make ball location on screen consistent (centered)
@@ -166,7 +181,8 @@ const APP = {
 	thrown: false,
 	doubletap: false,
 	goal: false,
-	controlsEnabled: true,
+	controlsEnabled: false,
+	currentlyPlaying: false,
 
 	cursor: {
 		x: 0, // Mouse X.
@@ -178,9 +194,12 @@ const APP = {
 	force: {
 		y: 8, // Kick ball Y force.
     z: -2.5, // Kick ball Z force.
-	  m: 2400, // Multiplier for kick force.
+	  m: 2400, // Multiplier for kick force. (start 2400)
 	  xk: 8 // Kick ball X force multiplier.
 	},
+
+	hudHeight: 24,
+	hudColor: 0x68cc3d, // 68cc3d (green) or cccccc or e0ed2f (yellow)
 
 	init() {
 		APP.world = new WHS.World({
@@ -197,6 +216,7 @@ const APP = {
 		    	y: -200
 		    },  // Physic gravity.
 
+				// level 1 camera
 		    camera: {
 						x: 0,
 						y: 10, //APP.basketY/4,
@@ -204,19 +224,30 @@ const APP = {
 
 		        aspect: 45
 		    }
+
+				// test camera
+				/*camera: {
+						x: 0,
+						y: 100, //APP.basketY/4,
+						z: -30, // Move camera.
+
+		        aspect: 90
+					}*/
 		});
 
 		// Add raycaster variable
     APP.raycaster = new THREE.Raycaster();
 
 		APP.camera = APP.world.getCamera();
-		//APP.camera.lookAt(new THREE.Vector3(0, APP.basketY/2, -50));
 		APP.camera.lookAt(new THREE.Vector3(0, APP.basketY/2, -50));
+		//APP.camera.lookAt(new THREE.Vector3(0, 0, -50));
 
 		APP.createScene();
 		APP.addLights();
 		APP.addBasket();
 		APP.addBall();
+		// test
+		APP.addHUD();
 		APP.initEvents(); // 5
 
     // Start the loop.
@@ -235,7 +266,7 @@ const APP = {
 	    EVENTS._click(APP);
 	    EVENTS._keypress(APP);
 	    EVENTS._resize(APP);
-
+			EVENTS._scroll(APP);
 	},
 
   updateCoords(e) {
@@ -247,11 +278,60 @@ const APP = {
 
 	checkKeys(e) {
     	e.preventDefault();
+			console.log("Key pressed!");
+			console.log(e.code);
     	if (e.code === "Space") APP.thrown = false;
+			if(e.code === "KeyA") {
+				if(!APP.controlsEnabled){
+						APP.controlsEnabled = true;
+				}
+				else {
+					APP.controlsEnabled = false;
+				}
+			};
+			if(e.code === "ArrowUp" || e.code==="ArrowDown"){
+				if(e.code === "ArrowUp"){
+					console.log(APP.force.m);
+					console.log(APP.hudHeight);
+					APP.force.m += 50;
+					APP.hudHeight += 5;
+					APP.world.remove(APP.hud);
+					APP.addHUD();
+					//APP.hud.resetHeight(APP.hudHeight);
+					//APP.hud.height.set(APP.hud.height+1);
+				}
+				else{
+					APP.force.m -= 50;
+					APP.hudHeight -= 5;
+					APP.world.remove(APP.hud);
+					APP.addHUD();
+					//APP.hud.resetHeight(APP.hudHeight);
+					//APP.hud.height.set(APP.hud.height-1);
+				}
+				if(APP.force.m === 2400){
+					//APP.hud.color.set(0x68cc3d);
+					APP.hudColor = 0x68cc3d;
+					APP.world.remove(APP.hud);
+					APP.addHUD();
+				}
+				else {
+					//APP.hud.color.set(0xe0ed2f);
+					APP.hudColor = 0xe0ed2f;
+					APP.world.remove(APP.hud);
+					APP.addHUD();
+				}
+
+			}
   	},
 
+	checkScroll(){
+		e.preventDefault();
+		console.log("SCROLL");
+	},
+
   detectDoubleTap() {
-	    if (!APP.doubletap) { // Wait for second click.
+		if(APP.controlsEnabled){
+			if (!APP.doubletap) { // Wait for second click.
 	      	APP.doubletap = true;
 
 	      	setTimeout(() => {
@@ -265,6 +345,7 @@ const APP = {
 
 	      	return true;
 	    }
+		}
 	},
 
 	createScene() {
@@ -320,16 +401,12 @@ const APP = {
 			}
 		});
 
-
 		//APP.ground.__params.material.map = WHS.texture('textures/floor.png', {repeat: {y: 4, x: 10}});
 		APP.ground.addTo(APP.world);
-
-
-
 		APP.wall.position.y = 180;
-    	APP.wall.position.z = -APP.basketDistance-20;
-    	APP.wall.rotation.x = 0;
-    	APP.wall.addTo(APP.world);
+    APP.wall.position.z = -APP.basketDistance-20;
+    APP.wall.rotation.x = 0;
+    APP.wall.addTo(APP.world);
 
 	},
 
@@ -546,23 +623,61 @@ const APP = {
 		APP.ball.addTo(APP.world);
 	},
 
+	addHUD(){
+		//const ratio = APP.camera.getNative().getFilmWidth() / APP.camera.getNative().getFilmHeight();
+		APP.hud = new WHS.Cylinder({
+			geometry: {
+				buffer: true,
+				radiusTop: 2,
+				radiusBottom: 2,
+				depth: 2,
+				//height: APP.basketY * (APP.force.m / 4800)
+				height: APP.hudHeight*2
+			},
+
+			shadow: {cast: true},
+
+			mass: 0,
+
+			material: {
+				kind: 'standard',
+				color: APP.hudColor, // 68cc3d (green) or cccccc or e0ed2f (yellow)
+				//map: WHS.texture('textures/backboard.jpg'),
+				normalScale: new THREE.Vector2(.3, .3),
+				metalness: 0,
+				roughness:0.3
+			},
+
+			pos: {
+				y: -20, //APP.basketY, // + 10, or 0
+				//y: ((APP.basketY + 35)/2)-this.height/2,
+				z: APP.getBasketZ() - APP.getBasketRadius() -2
+			},
+		});
+
+		APP.hud.addTo(APP.world);
+		//APP.ProgressLoader.step();
+		//var hudTexture = new THREE.Texture(hudCanvas);
+
+	},
+
 	throwBall(e) {
 	    e.preventDefault();
 
 	    if (!APP.detectDoubleTap() && APP.controlsEnabled && !APP.thrown) {
-	      	const vector = new THREE.Vector3(
-	        	APP.force.xk * (APP.cursor.x - APP.cursor.xCenter),
-	        	APP.force.y * APP.force.m,
-	        	APP.force.z * APP.force.m
-	      	);
+	    	const vector = new THREE.Vector3(
+	      	APP.force.xk * (APP.cursor.x - APP.cursor.xCenter),
+	      	APP.force.y * APP.force.m,
+	      	APP.force.z * APP.force.m
+      	);
 
-	      	APP.ball.setLinearVelocity(new THREE.Vector3(0, 0, 0)); // Reset gravity affect.
+      	APP.ball.setLinearVelocity(new THREE.Vector3(0, 0, 0)); // Reset gravity affect.
 
-	      	APP.ball.applyCentralImpulse(vector);
+      	APP.ball.applyCentralImpulse(vector);
 
-	      	vector.multiplyScalar(10 / APP.force.m)
-	      	vector.y = vector.x;
-	      	vector.x = APP.force.y;
+      	vector.multiplyScalar(10 / APP.force.m)
+      	vector.y = vector.x;
+      	vector.x = APP.force.y;
 		    vector.z = 0;
 
 		    APP.ball.setAngularVelocity(vector); // Reset gravity affect.
@@ -583,8 +698,9 @@ const APP = {
 
 const EVENTS = {
 	_click(APP) {
-    window.addEventListener('click', APP.throwBall);
-    window.addEventListener('click', () => {
+
+    window.addEventListener('mouseup', APP.throwBall);
+    window.addEventListener('mouseup', () => {
       const el = APP.world.getRenderer().domElement;
 
       if (!el.fullscreenElement && APP.isMobile) {
@@ -616,7 +732,11 @@ const EVENTS = {
       style.width = '100%';
       style.height = '100%';
     });
-  }
+  },
+
+	_scroll(APP){
+		window.addEventListener('scroll',APP.checkScroll);
+	}
 
 }
 
