@@ -5,63 +5,134 @@
 
 "use strict";
 
+const MAX_LEVELS = 3;
+
 const levelData = [
-  {
-    level: 1,
-    basketY: 20,
-    basketDistance: 80,
-    basketColor: 0xff0000,
+	{
+		level: 0,
+		camX: 0,
+		camY: 200,
+		camZ: 80,
+		attempts: 0,
+		baskets: 0,
+		accuracy: 0
+	},
+	{
+		level: 1,
+		camX: 0,
+		camY: 10,
+		camZ: 80,
+		attempts: 0,
+		baskets: 0,
+		accuracy: 0
+	},
+	{
+		level: 2,
+		camX: 40,
+		camY: 10,
+		camZ: 80,
+		attempts: 0,
+		baskets: 0,
+		accuracy: 0
+	},
+	{
+		level: 3,
+		camX: -80,
+		camY: 10,
+		camZ: 80,
+		attempts: 0,
+		baskets: 0,
+		accuracy: 0
+	}
 
-    force: {
-      y: 6,
-      z: -2
-    }
-  },
-  {
-    level: 2,
-    basketY: 25,
-    basketDistance: 100,
-    basketColor: 0x0000ff,
-
-    force: {
-      y: 6.2,
-      z: -3
-    }
-  },
-  {
-    level: 3,
-    basketY: 30,
-    basketDistance: 120,
-    basketColor: 0x00ff00,
-
-    force: {
-      y: 6.2,
-      z: -4
-    }
-  },
-  {
-    level: 4,
-    basketY: 25,
-    basketDistance: 150,
-    basketColor: 0xffff00,
-
-    force: {
-      z: -5,
-      y: 6.6
-    }
-  }
 ];
 
-const IntToHex = (d, padding) => {
-    var hex = Number(d).toString(16);
-    padding = typeof (padding) === "undefined" || padding === null ? padding = 2 : padding;
+function updateAppForLevel(){
+	var i = APP.currentLvlIndex;
+	var d = levelData[i];
+	APP.currentLvl = levelData[i];
+	APP.camera.x = d.camX;
+	APP.camera.y = d.camY;
+	APP.camera.z = d.camZ;
+	APP.world.camera.position.set(d.camX,d.camY,d.camZ);
+	APP.camera.lookAt(new THREE.Vector3(0, APP.basketY/2, -50));
+}
 
-    while (hex.length < padding) {
-        hex = "0" + hex;
-    }
+function addScore(lvl){
+	console.log(lvl);
+	var body = document.body;
+	var dv = document.createElement('div');//, 'para');
+	dv.id = "scoreDiv";
+	dv.style.zIndex = "1";
+	dv.style.position = "absolute";
+	dv.style.left = "100px";
+	dv.style.top = "150px";
+	dv.style.color = "white";
 
-    return '#' + hex;
-};
+	var txt1 = document.createElement('p');
+	var t1n1 = document.createTextNode("Level: ");
+	var t1n2 = document.createTextNode(levelData[lvl].level);
+	txt1.appendChild(t1n1);
+	txt1.appendChild(t1n2);
+
+	var br = document.createElement('br');
+
+	var txt2 = document.createElement('p');
+	var t2n1 = document.createTextNode("Attempts: ");
+	var t2n2 = document.createTextNode(levelData[lvl].attempts);
+	txt2.appendChild(t2n1);
+	txt2.appendChild(t2n2);
+
+	var txt3 = document.createElement('p');
+	var t3n1 = document.createTextNode("Baskets: ");
+	var t3n2 = document.createTextNode(levelData[lvl].baskets);
+	txt3.appendChild(t3n1);
+	txt3.appendChild(t3n2);
+
+	var txt4 = document.createElement('p');
+	var t4n1 = document.createTextNode("Accuracy: ");
+	var t4n2 = document.createTextNode(levelData[lvl].accuracy);
+	txt4.appendChild(t4n1);
+	txt4.appendChild(t4n2);
+
+
+	dv.appendChild(txt1);
+	dv.appendChild(br);
+	dv.appendChild(txt2);
+	dv.appendChild(br);
+	dv.appendChild(txt3);
+	dv.appendChild(br);
+	body.appendChild(dv);
+}
+
+function remScore(){
+	var body = document.body;
+	var itm = document.getElementById("scoreDiv");
+	body.removeChild(itm);
+}
+
+function addStartMsg(app){
+	var body = document.body;
+	var dv = document.createElement('div');//, 'para');
+	dv.id = "startMsgDiv";
+	dv.style.zIndex = "1";
+	dv.style.position = "absolute";
+	dv.style.left = "100px";
+	dv.style.top = "150px";
+	dv.style.color = "white";
+
+	var txt1 = document.createElement('p');
+	var t1n1 = document.createTextNode("ENTER TO BEGIN");
+	txt1.appendChild(t1n1);
+	dv.appendChild(txt1);
+	body.appendChild(dv);
+}
+
+function remStartMsg(app){
+	var body = document.body;
+	var itm = document.getElementById("startMsgDiv");
+	body.removeChild(itm);
+}
 
 function generateMenuTexture(menu) {
   /* CONFIG */
@@ -87,42 +158,6 @@ function generateMenuTexture(menu) {
   context.font = "Normal 200px FNL";
   context.textAlign = "center";
   context.fillText(menu.markText, 1000, 800);
-
-  const image = document.createElement('img');
-  image.src = canvas.toDataURL();
-
-  const texture = new THREE.Texture(image);
-  texture.needsUpdate = true;
-
-  return texture;
-};
-
-function generateLevelTexture(levelData) {
-  /* CANVAS */
-  const canvas = document.createElement('canvas');
-  canvas.width = 160;
-  canvas.height = 80;
-  const context = canvas.getContext('2d');
-
-  context.fillStyle = "#000";
-  context.beginPath();
-  context.rect(0, 0, 160, 80);
-  context.fill();
-
-  context.fillStyle = "#2D3134";
-  context.beginPath();
-  context.rect(5, 5, 150, 70);
-  context.fill();
-
-  context.fillStyle = "#000";
-  context.beginPath();
-  context.arc(80, 40, 40, 0, Math.PI * 2, false);
-  context.fill();
-
-  context.font = "Bold 60px Richardson";
-  context.fillStyle = levelData.basketColor ? IntToHex(levelData.basketColor, 6) : "#2D3134";
-  context.textAlign = "center";
-  context.fillText("" + levelData.level, 80, 60);
 
   const image = document.createElement('img');
   image.src = canvas.toDataURL();
@@ -179,8 +214,8 @@ const APP = {
 	thrown: false,
 	doubletap: false,
 	goal: false,
-	controlsEnabled: true,
-	currentlyPlaying: false,
+	controlsEnabled: false,
+	//currentlyPlaying: false,
 
 	cursor: {
 		x: 0, // Mouse X.
@@ -199,6 +234,20 @@ const APP = {
 
 	hudHeight: 24,
 	hudColor: 0x68cc3d, // 68cc3d (green) or cccccc or e0ed2f (yellow)
+	currentLvlIndex: 0,
+	currentLvl: levelData[0],
+
+	/*menu: {
+		level: currentLvl.level,
+    //timeClock: null,
+    //time: 0,
+		attempts: currentLvl.attempts,
+		baskets: currentLvl.baskets,
+    accuracy: currentLvl.accuracy,
+    //markText: "",
+
+    //enabled: false
+  },*/
 
 	init() {
 		APP.world = new WHS.World({
@@ -218,7 +267,7 @@ const APP = {
 				// level 1 camera
 		    camera: {
 						x: 0, // (0)
-						y: 10, //APP.basketY/4, (10)
+						y: 200, //APP.basketY/4, (10)
 						z: 80, // Move camera. (80)
 
 		        aspect: 45 //(45)
@@ -235,7 +284,7 @@ const APP = {
 		});
 
 		// Add raycaster variable
-    APP.raycaster = new THREE.Raycaster();
+    //APP.raycaster = new THREE.Raycaster();
 
 		APP.camera = APP.world.getCamera();
 		APP.camera.lookAt(new THREE.Vector3(0, APP.basketY/2, -50));
@@ -244,20 +293,24 @@ const APP = {
 		APP.createScene();
 		APP.addLights();
 		APP.addBasket();
-		APP.addBall();
+		//APP.addBall();
 		// test
 		APP.addHUD();
+		//addScore();
+		addStartMsg(APP);
 		APP.initEvents(); // 5
 
     // Start the loop.
-    APP.keep_ball = keep_ball(APP);
-    APP.world.addLoop(APP.keep_ball);
-    APP.keep_ball.start();
+    //APP.keep_ball = keep_ball(APP);
+    //APP.world.addLoop(APP.keep_ball);
+    //APP.keep_ball.start();
+
+		// ADD scoring thing
 
 
 		APP.world.start();
 
-		APP.initMenu(); // 6
+		//APP.initMenu(); // 6
 	},
 
 	initEvents() {
@@ -321,16 +374,52 @@ const APP = {
 				}
 			}
 			if(e.code === "KeyQ"){
-				console.log("HELP camera angle");
+				console.log("HELP Canvas");
+				var canvas = document.getElementsByTagName('body');
+				console.log(document.body);
+				addScore(APP.currentLvlIndex);
+				/*console.log("HELP camera angle");
 				console.log(getCameraAngle());
 				console.log(getCameraPos());
 				console.log(Math.cos(getCameraAngle().x));
-				console.log(Math.sin(getCameraAngle().x));
+				console.log(Math.sin(getCameraAngle().x));*/
 				/*console.log("HELP mouse position");
 				console.log(APP.cursor.x);
 				console.log(APP.cursor.xCenter);
 				console.log(APP.cursor.y);
 				console.log(APP.cursor.yCenter);*/
+			}
+			if(e.code === "Enter"){
+				remStartMsg(APP);
+				APP.addBall();
+				APP.currentLvlIndex++;
+				updateAppForLevel();
+				addScore(APP.currentLvlIndex);
+				APP.keep_ball = keep_ball(APP);
+		    APP.world.addLoop(APP.keep_ball);
+		    APP.keep_ball.start();
+				APP.controlsEnabled = true;
+				//reset world
+			}
+			if(e.code === "Equal"){
+				console.log("increment level");
+				if(APP.currentLvlIndex>0 && APP.currentLvlIndex<MAX_LEVELS){
+					APP.currentLvlIndex++;
+					remScore();
+					updateAppForLevel();
+					addScore(APP.currentLvlIndex);
+				}
+				//reset world
+			}
+			if(e.code === "Minus"){
+				console.log("decrement level");
+				if(APP.currentLvlIndex>1 && APP.currentLvlIndex<=MAX_LEVELS){
+					APP.currentLvlIndex--;
+					remScore();
+					updateAppForLevel();
+					addScore(APP.currentLvlIndex);
+				}
+				//reset world
 			}
   	},
 
@@ -704,7 +793,9 @@ const APP = {
 
 		    APP.ball.setAngularVelocity(vector); // Reset gravity affect.
 		    APP.thrown = true;
-		    //APP.menu.attempts++;
+				levelData[APP.currentLvlIndex].attempts++;
+				remScore();
+				addScore(APP.currentLvlIndex);
 	    }
 	 },
 
@@ -720,6 +811,12 @@ const APP = {
 
 	    APP.ball.position.set(pos.x+80*Math.sin(ang.x)+x*Math.cos(ang.x), y, pos.z-80*Math.cos(ang.x)+x*Math.sin(ang.x));
 	},
+
+	onGoal(){
+		levelData[APP.currentLvlIndex].baskets++;
+		remScore();
+		addScore(APP.currentLvlIndex);
+	}
 };
 
 const EVENTS = {
@@ -788,6 +885,8 @@ console.log( APP.world);
 
 var canvas = document.getElementsByTagName('body');
 console.log(canvas);
+
+/*
 var para = document.createElement('p');//, 'para');
 var node = document.createTextNode("This is new.");
 para.appendChild(node);
