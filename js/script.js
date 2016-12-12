@@ -1,7 +1,143 @@
+//import levelData from './levelData';
+//import TexUtils from './utils/textures';
 //import EVENTS from './events';
+//import {checkForLevel, loop_raycaster, keep_ball} from './loops';
+
 "use strict";
 
+const levelData = [
+  {
+    level: 1,
+    basketY: 20,
+    basketDistance: 80,
+    basketColor: 0xff0000,
 
+    force: {
+      y: 6,
+      z: -2
+    }
+  },
+  {
+    level: 2,
+    basketY: 25,
+    basketDistance: 100,
+    basketColor: 0x0000ff,
+
+    force: {
+      y: 6.2,
+      z: -3
+    }
+  },
+  {
+    level: 3,
+    basketY: 30,
+    basketDistance: 120,
+    basketColor: 0x00ff00,
+
+    force: {
+      y: 6.2,
+      z: -4
+    }
+  },
+  {
+    level: 4,
+    basketY: 25,
+    basketDistance: 150,
+    basketColor: 0xffff00,
+
+    force: {
+      z: -5,
+      y: 6.6
+    }
+  }
+];
+
+const IntToHex = (d, padding) => {
+    var hex = Number(d).toString(16);
+    padding = typeof (padding) === "undefined" || padding === null ? padding = 2 : padding;
+
+    while (hex.length < padding) {
+        hex = "0" + hex;
+    }
+
+    return '#' + hex;
+};
+
+function generateMenuTexture(menu) {
+  /* CONFIG */
+  const leftPadding = 1700;
+
+  /* CANVAS */
+  const canvas = document.createElement('canvas');
+  canvas.width = 2000;
+  canvas.height = 1000;
+  const context = canvas.getContext('2d');
+
+  context.font = "Bold 100px Richardson";
+  context.fillStyle = "#2D3134";
+  context.fillText("Time", 0, 150);
+  context.fillText(menu.time.toFixed() + 's.', leftPadding, 150);
+
+  context.fillText("Attempts", 0, 300);
+  context.fillText(menu.attempts.toFixed(), leftPadding, 300);
+
+  context.fillText("Accuracy", 0, 450);
+  context.fillText(menu.accuracy.toFixed(), leftPadding, 450);
+
+  context.font = "Normal 200px FNL";
+  context.textAlign = "center";
+  context.fillText(menu.markText, 1000, 800);
+
+  const image = document.createElement('img');
+  image.src = canvas.toDataURL();
+
+  const texture = new THREE.Texture(image);
+  texture.needsUpdate = true;
+
+  return texture;
+};
+
+function generateLevelTexture(levelData) {
+  /* CANVAS */
+  const canvas = document.createElement('canvas');
+  canvas.width = 160;
+  canvas.height = 80;
+  const context = canvas.getContext('2d');
+
+  context.fillStyle = "#000";
+  context.beginPath();
+  context.rect(0, 0, 160, 80);
+  context.fill();
+
+  context.fillStyle = "#2D3134";
+  context.beginPath();
+  context.rect(5, 5, 150, 70);
+  context.fill();
+
+  context.fillStyle = "#000";
+  context.beginPath();
+  context.arc(80, 40, 40, 0, Math.PI * 2, false);
+  context.fill();
+
+  context.font = "Bold 60px Richardson";
+  context.fillStyle = levelData.basketColor ? IntToHex(levelData.basketColor, 6) : "#2D3134";
+  context.textAlign = "center";
+  context.fillText("" + levelData.level, 80, 60);
+
+  const image = document.createElement('img');
+  image.src = canvas.toDataURL();
+
+  const texture = new THREE.Texture(image);
+  texture.needsUpdate = true;
+
+  return texture;
+};
+
+//TODO:
+//	In double click, reposition camera + ball
+//	make ball location on screen consistent (centered)
+//	Add possibility to change power of shot
+//	Add scoreboard
 
 const APP = {
 	bgColor: 0xcccccc, //grey
@@ -34,16 +170,16 @@ const APP = {
 
 	cursor: {
 		x: 0, // Mouse X.
-	    y: 0, // Mouse Y.
-	    xCenter: window.innerWidth / 2, // Window center X.
-	    yCenter: window.innerHeight / 2 // Window center Y.
+	  y: 0, // Mouse Y.
+	  xCenter: window.innerWidth / 2, // Window center X.
+	  yCenter: window.innerHeight / 2 // Window center Y.
 	},
 
 	force: {
 		y: 8, // Kick ball Y force.
-    	z: -2.5, // Kick ball Z force.
-	    m: 2400, // Multiplier for kick force.
-	    xk: 8 // Kick ball X force multiplier.
+    z: -2.5, // Kick ball Z force.
+	  m: 2400, // Multiplier for kick force.
+	  xk: 8 // Kick ball X force multiplier.
 	},
 
 	init() {
@@ -62,13 +198,19 @@ const APP = {
 		    },  // Physic gravity.
 
 		    camera: {
-		        z: 80, // Move camera.
-		        y: 10, //APP.basketY/4,
+						x: 0,
+						y: 10, //APP.basketY/4,
+						z: 80, // Move camera.
+
 		        aspect: 45
 		    }
 		});
 
+		// Add raycaster variable
+    APP.raycaster = new THREE.Raycaster();
+
 		APP.camera = APP.world.getCamera();
+		//APP.camera.lookAt(new THREE.Vector3(0, APP.basketY/2, -50));
 		APP.camera.lookAt(new THREE.Vector3(0, APP.basketY/2, -50));
 
 		APP.createScene();
@@ -77,13 +219,15 @@ const APP = {
 		APP.addBall();
 		APP.initEvents(); // 5
 
-	    // Start the loop.
-	    APP.keep_ball = keep_ball(APP);
-	    APP.world.addLoop(APP.keep_ball);
-	    APP.keep_ball.start();
+    // Start the loop.
+    APP.keep_ball = keep_ball(APP);
+    APP.world.addLoop(APP.keep_ball);
+    APP.keep_ball.start();
 
 
 		APP.world.start();
+
+		APP.initMenu(); // 6
 	},
 
 	initEvents() {
@@ -94,19 +238,19 @@ const APP = {
 
 	},
 
-  	updateCoords(e) {
+  updateCoords(e) {
 	    e.preventDefault();
 
 	    APP.cursor.x = e.touches && e.touches[0] ? e.touches[0].clientX : e.clientX;
 	    APP.cursor.y = e.touches && e.touches[0] ? e.touches[0].clientY : e.clientY;
 	},
 
-  	checkKeys(e) {
+	checkKeys(e) {
     	e.preventDefault();
     	if (e.code === "Space") APP.thrown = false;
   	},
 
-  	detectDoubleTap() {
+  detectDoubleTap() {
 	    if (!APP.doubletap) { // Wait for second click.
 	      	APP.doubletap = true;
 
@@ -435,8 +579,6 @@ const APP = {
 
 	    APP.ball.position.set(x, y, 0);
 	}
-
-
 };
 
 const EVENTS = {
