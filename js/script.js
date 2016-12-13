@@ -9,7 +9,6 @@ var basketY = 40;
 var ballRadius = 6;
 var basketColor = 0xff0000; //red
 
-var BasketRadius = ballRadius + 2;
 var basketTubeRadius = 0.5;
 var basketDistance = 80;
 var basketGoalDiff = 2.5;
@@ -27,6 +26,11 @@ var controlsEnabled = false;
 var hudHeight = 24;
 var hudColor = 0x68cc3d; //green
 var currentLvlIndex = 0;
+
+var basketRadius = ballRadius + 2;
+var basketZ = basketRadius + basketTubeRadius * 2 - basketDistance+5;
+var basketYGoalDiff = 1;
+var	basketYDeep = 1;
 
 //Object contains camera positions and stats for each level
 const levelData = [
@@ -222,7 +226,7 @@ const cursor = {
 }
 
 const force = {
-		y: 8, // Kick ball Y force. (8)
+	y: 8, // Kick ball Y force. (8)
     z: -2.5, // Kick ball Z force. (-2.5) // FRONTWARD
     m: 1250, // Multiplier for kick force. (start 2400)
   	xk: 8 // Kick ball X force multiplier. (8) // L/R
@@ -250,9 +254,6 @@ const EVENTS = {
 }
 
 function updateCoords(e) {
-	//e.preventDefault();
-	//cursor.x = e.touches && e.touches[0] ? e.touches[0].clientX : e.clientX;
-	//cursor.y = e.touches && e.touches[0] ? e.touches[0].clientY : e.clientY;
 	cursor.x = e.clientX;
 	cursor.y = e.clientY;
 }
@@ -267,9 +268,9 @@ function checkKeys(e) {
 		currentLvlIndex++;
 		updateAppForLevel();
 		addScore(currentLvlIndex);
-		APP.keep_ball = keep_ball(APP);
-		APP.world.addLoop(APP.keep_ball);
-	    APP.keep_ball.start();
+		APP.ball_loop = ball_loop(APP);
+		APP.world.addLoop(APP.ball_loop);
+	    APP.ball_loop.start();
 		controlsEnabled = true;
 				//reset world
 	}
@@ -344,14 +345,14 @@ function detectDoubleTap() {
 	}
 }
 
-const keep_ball = (APP) => {
+function ball_loop(APP) {
   return new WHS.Loop(() => {
     if (!thrown) APP.keepBall();
 
     const BLpos = APP.ball.position;
     const BSpos = APP.basket.position
 
-    if (BLpos.distanceTo(BSpos) < basketGoalDiff && Math.abs(BLpos.y - BSpos.y + APP.basketYDeep()) < APP.basketYGoalDiff() && !goal)
+    if (BLpos.distanceTo(BSpos) < basketGoalDiff && BLpos.y < BSpos.y && !goal)//Math.abs(BLpos.y - BSpos.y /*+ basketYDeep*/) < basketYGoalDiff && !goal)
     	APP.onGoal();
   });
 }
@@ -359,13 +360,6 @@ const keep_ball = (APP) => {
 //holds infor for main application
 
 const APP = {
-
-
-	getBasketRadius: () => ballRadius + 2,
-	getBasketZ: () => APP.getBasketRadius() + basketTubeRadius * 2 - basketDistance+5,
-	basketYGoalDiff: () => 1,
-	basketYDeep: () => 1,
-
 
 	init() {
 		APP.world = new WHS.World({
@@ -415,7 +409,7 @@ const APP = {
 
 			material: {
 				kind: 'phong',
-				color: bgColor,
+				//color: bgColor,
 				map: WHS.texture('textures/floor.png', {repeat: {y: 4, x: 10}}),
 
 			},
@@ -441,25 +435,22 @@ const APP = {
 
 			material: {
 				kind: 'phong',
-				color: bgColor,
+				//color: bgColor,
 				map: WHS.texture('textures/background.jpg'), //{repeat: {y: 4, x: 10}}), //offset: {y: 0.3}}),
 
 			},
 
 			pos: {
-				y:-20,
-				z:120,
+				y:180,
+				z:-basketDistance-20,
 			},
 
 			rot: {
-				x: -Math.PI/2
+				x: 0 
 			}
 		});
 
 		APP.ground.addTo(APP.world);
-		APP.wall.position.y = 180;
-    	APP.wall.position.z = -basketDistance-20;
-    	APP.wall.rotation.x = 0;
     	APP.wall.addTo(APP.world);
 
 	},
@@ -505,7 +496,7 @@ const APP = {
 		APP.basket = new WHS.Torus({
 			geometry: {
 				buffer: true,
-				radius: APP.getBasketRadius(),
+				radius: basketRadius,
 				tube: basketTubeRadius,
 				radialSegments: 16,
 				tubularSegments: 16
@@ -528,7 +519,7 @@ const APP = {
 
 			pos: {
 				y: basketY,
-				z: APP.getBasketZ()
+				z: basketZ
 			},
 
 			physics: { type: 'concave' },
@@ -559,7 +550,7 @@ const APP = {
 
 			pos: {
 				y:basketY + 10,
-				z: APP.getBasketZ() - APP.getBasketRadius()
+				z: basketZ - basketRadius
 			}
 		});
 
@@ -574,7 +565,7 @@ const APP = {
 				height: basketY + 35
 			},
 
-			shadow: {cast: true},
+			//shadow: {cast: true},
 
 			mass: 0,
 
@@ -587,7 +578,7 @@ const APP = {
 
 			pos: {
 				y: 0,
-				z: APP.getBasketZ() - APP.getBasketRadius() -2
+				z: basketZ - basketRadius -2
 			}
 		});
 
@@ -595,8 +586,8 @@ const APP = {
 
 		APP.net = new WHS.Cylinder({
 			geometry: {
-				radiusTop: APP.getBasketRadius(),
-				radiusBottom: APP.getBasketRadius() - 3,
+				radiusTop: basketRadius,
+				radiusBottom: basketRadius - 3,
 		        height: 15,
 		        openEnded: true,
 		        heightSegments: 5,
@@ -630,7 +621,7 @@ const APP = {
 
 		    pos: {
 		        y: basketY - 8,
-		        z: APP.getBasketZ()
+		        z: basketZ
 		    }
 
 		});
@@ -679,7 +670,7 @@ const APP = {
 				height: hudHeight*2
 			},
 
-			shadow: {cast: true},
+			//shadow: {cast: true},
 
 			mass: 0,
 
@@ -693,7 +684,7 @@ const APP = {
 
 			pos: {
 				y: -20, //APP.basketY, // + 10, or 0
-				z: APP.getBasketZ() - APP.getBasketRadius() -2
+				z: basketZ - basketRadius -2
 			},
 		});
 
@@ -722,6 +713,7 @@ const APP = {
 
       		APP.ball.applyCentralImpulse(vector);
 
+      		//set rotation of ball
       		vector.multiplyScalar(10 / force.m)
       		vector.y = vector.x;
       		vector.x = force.y;
