@@ -1,6 +1,6 @@
 "use strict";
 
-const MAX_LEVELS = 3;
+const MAX_LEVELS = 4;
 
 //global variables
 var bgColor = 0xcccccc; //grey
@@ -62,6 +62,15 @@ const levelData = [
 		camX: -80,
 		camY: 10,
 		camZ: 80,
+		attempts: 0,
+		baskets: 0,
+		accuracy: 0
+	},
+	{
+		level: 4,
+		camX: -30,
+		camY: 10,
+		camZ: 160,
 		attempts: 0,
 		baskets: 0,
 		accuracy: 0
@@ -213,7 +222,7 @@ const cursor = {
 }
 
 const force = {
-	y: 8, // Kick ball Y force. (8)
+		y: 8, // Kick ball Y force. (8)
     z: -2.5, // Kick ball Z force. (-2.5) // FRONTWARD
     m: 1250, // Multiplier for kick force. (start 2400)
   	xk: 8 // Kick ball X force multiplier. (8) // L/R
@@ -224,8 +233,8 @@ const EVENTS = {
 
 	click(APP) {
     	window.addEventListener('mouseup', APP.throwBall);
-    	window.addEventListener('mouseup', () => { 
-    		const el = APP.world.getRenderer().domElement; 
+    	window.addEventListener('mouseup', () => {
+    		const el = APP.world.getRenderer().domElement;
     	});
   	},
 
@@ -233,7 +242,7 @@ const EVENTS = {
     	['mousemove', 'touchmove'].forEach((e) => {
       		window.addEventListener(e, updateCoords);
     	});
-  	}, 
+  	},
 
   	keypress(APP) {
     	window.addEventListener('keypress', checkKeys);
@@ -247,9 +256,9 @@ function updateCoords(e) {
 }
 
 function checkKeys(e) {
-    if (e.code === "Space") 
+    if (e.code === "Space")
     	thrown = false;
-		
+
 	if(e.code === "Enter"){
 		remStartMsg(APP);
 		APP.addBall();
@@ -282,6 +291,41 @@ function checkKeys(e) {
 		}
 				//reset world
 	}
+	if(e.code === "ArrowUp" || e.code==="ArrowDown"){
+				if(e.code === "ArrowUp"){
+					force.m += 50;
+					hudHeight += 5;
+					console.log(force.m);
+					console.log(hudHeight);
+					APP.world.remove(APP.hud);
+					APP.addHUD();
+					//APP.hud.resetHeight(APP.hudHeight);
+					//APP.hud.height.set(APP.hud.height+1);
+				}
+				else{
+					force.m -= 50;
+					hudHeight -= 5;
+					console.log(force.m);
+					console.log(hudHeight);
+					APP.world.remove(APP.hud);
+					APP.addHUD();
+					//APP.hud.resetHeight(APP.hudHeight);
+					//APP.hud.height.set(APP.hud.height-1);
+				}
+				if(force.m === 1250){
+					//APP.hud.color.set(0x68cc3d);
+					hudColor = 0x68cc3d;
+					APP.world.remove(APP.hud);
+					APP.addHUD();
+				}
+				else {
+					//APP.hud.color.set(0xe0ed2f);
+					hudColor = 0xe0ed2f;
+					APP.world.remove(APP.hud);
+					APP.addHUD();
+				}
+
+			}
 }
 
 function detectDoubleTap() {
@@ -298,8 +342,6 @@ function detectDoubleTap() {
 	}
 }
 
-
-
 const keep_ball = (APP) => {
   return new WHS.Loop(() => {
     if (!thrown) APP.keepBall();
@@ -307,8 +349,8 @@ const keep_ball = (APP) => {
     const BLpos = APP.ball.position;
     const BSpos = APP.basket.position
 
-    if (BLpos.distanceTo(BSpos) < basketGoalDiff && Math.abs(BLpos.y - BSpos.y + APP.basketYDeep()) < APP.basketYGoalDiff() && !goal) 
-    	APP.onGoal(); 
+    if (BLpos.distanceTo(BSpos) < basketGoalDiff && Math.abs(BLpos.y - BSpos.y + APP.basketYDeep()) < APP.basketYGoalDiff() && !goal)
+    	APP.onGoal();
   });
 }
 
@@ -347,7 +389,7 @@ const APP = {
 
 		APP.addHUD();
 		addStartMsg(APP);
-		APP.initEvents(); 
+		APP.initEvents();
 
 		APP.world.start();
 	},
@@ -542,7 +584,7 @@ const APP = {
 			},
 
 			pos: {
-				y: 0, 
+				y: 0,
 				z: APP.getBasketZ() - APP.getBasketRadius() -2
 			}
 		});
@@ -659,16 +701,14 @@ const APP = {
 
 	throwBall(e) {
 	    var mult = force.m;
-	    if (currentLvlIndex == 3)
-	    	mult*=1.1;
 
 	    if (!detectDoubleTap() && controlsEnabled && !thrown) {
 			const ang = getCameraAngle();
 			const pos = getCameraPos();
 
 			const F_X = force.xk * (cursor.x - cursor.xCenter);
-			const F_Y = force.y * mult;
-			const F_Z = force.z * mult;
+			const F_Y = force.y * force.m;
+			const F_Z = force.z * force.m;
 
 			const F_X_ADJ = F_X*Math.cos(ang.x) - F_Z*Math.sin(ang.x);
 			const F_Y_ADJ = F_Y;
@@ -723,4 +763,3 @@ const APP = {
 
 //initialize application
 APP.init();
-
