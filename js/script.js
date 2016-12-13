@@ -1,12 +1,34 @@
-//import levelData from './levelData';
-//import TexUtils from './utils/textures';
-//import EVENTS from './events';
-//import {checkForLevel, loop_raycaster, keep_ball} from './loops';
-
 "use strict";
 
 const MAX_LEVELS = 3;
 
+//global variables
+var bgColor = 0xcccccc; //grey
+
+var basketY = 40;
+var ballRadius = 6;
+var basketColor = 0xff0000; //red
+
+var BasketRadius = ballRadius + 2;
+var basketTubeRadius = 0.5;
+var basketDistance = 80;
+var basketGoalDiff = 2.5;
+
+var goalDuration = 1800; //ms
+
+var doubleTapTime = 300;
+
+//other variables
+var thrown = false;
+var doubletap = false;
+var goal = false;
+var controlsEnabled = false;
+
+var hudHeight = 24;
+var hudColor = 0x68cc3d; //green
+var currentLvlIndex = 0;
+
+//Object contains camera positions and stats for each level
 const levelData = [
 	{
 		level: 0,
@@ -47,21 +69,24 @@ const levelData = [
 
 ];
 
+var currentLvl = levelData[0];
+
+
 function updateAppForLevel(){
-	var i = APP.currentLvlIndex;
+	var i = currentLvlIndex;
 	var d = levelData[i];
 	APP.currentLvl = levelData[i];
 	APP.camera.x = d.camX;
 	APP.camera.y = d.camY;
 	APP.camera.z = d.camZ;
 	APP.world.camera.position.set(d.camX,d.camY,d.camZ);
-	APP.camera.lookAt(new THREE.Vector3(0, APP.basketY/2, -50));
+	APP.camera.lookAt(new THREE.Vector3(0, basketY/2, -50));
 }
 
 function addScore(lvl){
 	console.log(lvl);
 	var body = document.body;
-	var dv = document.createElement('div');//, 'para');
+	var dv = document.createElement('div');
 	dv.id = "scoreDiv";
 	dv.style.zIndex = "1";
 	dv.style.position = "absolute";
@@ -114,7 +139,7 @@ function remScore(){
 
 function addStartMsg(app){
 	var body = document.body;
-	var dv = document.createElement('div');//, 'para');
+	var dv = document.createElement('div');
 	dv.id = "startMsgDiv";
 	dv.style.zIndex = "1";
 	dv.style.position = "absolute";
@@ -177,276 +202,162 @@ function getCameraAngle(){
 
 function getCameraPos(){
 	var vector = new THREE.Vector3(APP.camera.x,APP.camera.y,APP.camera.z);
-	//APP.camera.getWorldDirection(vector);
 	return APP.camera.position;
-	//return 0;
 }
 
-//TODO:
-//	In double click, reposition camera + ball
-//	make ball location on screen consistent (centered)
-//	Add possibility to change power of shot
-//	Add scoreboard
+const cursor = {
+	x: 0, // Mouse X.
+	y: 0, // Mouse Y.
+	xCenter: window.innerWidth / 2, // Window center X.
+	yCenter: window.innerHeight / 2 // Window center Y.
+}
+
+const force = {
+	y: 8, // Kick ball Y force. (8)
+    z: -2.5, // Kick ball Z force. (-2.5) // FRONTWARD
+    m: 2500, // Multiplier for kick force. (start 2400)
+  	xk: 8 // Kick ball X force multiplier. (8) // L/R
+}
+
+//event handlers
+const EVENTS = {
+
+	click(APP) {
+    	window.addEventListener('mouseup', APP.throwBall);
+    	window.addEventListener('mouseup', () => { 
+    		const el = APP.world.getRenderer().domElement; 
+    	});
+  	},
+
+  	move(APP) {
+    	['mousemove', 'touchmove'].forEach((e) => {
+      		window.addEventListener(e, updateCoords);
+    	});
+  	}, 
+
+  	keypress(APP) {
+    	window.addEventListener('keypress', checkKeys);
+  	}
+}
+
+function updateCoords(e) {
+	//e.preventDefault();
+	cursor.x = e.touches && e.touches[0] ? e.touches[0].clientX : e.clientX;
+	cursor.y = e.touches && e.touches[0] ? e.touches[0].clientY : e.clientY;
+}
+
+function checkKeys(e) {
+    if (e.code === "Space") 
+    	thrown = false;
+		
+	if(e.code === "Enter"){
+		remStartMsg(APP);
+		APP.addBall();
+		currentLvlIndex++;
+		updateAppForLevel();
+		addScore(currentLvlIndex);
+		APP.keep_ball = keep_ball(APP);
+		APP.world.addLoop(APP.keep_ball);
+	    APP.keep_ball.start();
+		controlsEnabled = true;
+				//reset world
+	}
+	if(e.code === "Equal"){
+		console.log("increment level");
+		if(currentLvlIndex>0 && currentLvlIndex<MAX_LEVELS){
+			currentLvlIndex++;
+			remScore();
+			updateAppForLevel();
+			addScore(currentLvlIndex);
+		}
+				//reset world
+	}
+	if(e.code === "Minus"){
+		console.log("decrement level");
+		if(currentLvlIndex>1 && currentLvlIndex<=MAX_LEVELS){
+			currentLvlIndex--;
+			remScore();
+			updateAppForLevel();
+			addScore(currentLvlIndex);
+		}
+				//reset world
+	}
+}
+
+function detectDoubleTap() {
+	if(controlsEnabled){
+		if (!doubletap) { // Wait for second click.
+	  		doubletap = true;
+	  		setTimeout(() => { doubletap = false; }, doubleTapTime);
+	  		return false;
+		} else { // Double tap triggered.
+	   		thrown = false;
+    		doubletap = true;
+      		return true;
+    	}
+	}
+}
+
+
+
+const keep_ball = (APP) => {
+  return new WHS.Loop(() => {
+    if (!thrown) APP.keepBall();
+
+    const BLpos = APP.ball.position;
+    const BSpos = APP.basket.position
+
+    if (BLpos.distanceTo(BSpos) < basketGoalDiff && Math.abs(BLpos.y - BSpos.y + APP.basketYDeep()) < APP.basketYGoalDiff() && !goal) 
+    	APP.onGoal(); 
+  });
+}
+
+//holds infor for main application
 
 const APP = {
-	bgColor: 0xcccccc, //grey
-	//bgColor: 0xffffff, //grey
 
-	basketY: 40,
-	ballRadius: 6,
-	basketColor: 0xff0000,
 
-	getBasketRadius: () => APP.ballRadius + 2,
-	basketTubeRadius: 0.5,
-
-	basketDistance: 80,
-
-	getBasketZ: () => APP.getBasketRadius() + APP.basketTubeRadius * 2 - APP.basketDistance+5,
-
-	//goal
-	basketGoalDiff: 2.5,
+	getBasketRadius: () => ballRadius + 2,
+	getBasketZ: () => APP.getBasketRadius() + basketTubeRadius * 2 - basketDistance+5,
 	basketYGoalDiff: () => 1,
 	basketYDeep: () => 1,
-	goalDuration: 1800, //ms
 
-	doubleTapTime: 300,
-
-	//other variables
-	thrown: false,
-	doubletap: false,
-	goal: false,
-	controlsEnabled: false,
-	//currentlyPlaying: false,
-
-	cursor: {
-		x: 0, // Mouse X.
-	  y: 0, // Mouse Y.
-	  xCenter: window.innerWidth / 2, // Window center X.
-	  yCenter: window.innerHeight / 2 // Window center Y.
-	},
-
-	force: {
-		y: 8, // Kick ball Y force. (8)
-    z: -2.5, // Kick ball Z force. (-2.5) // FRONTWARD
-	  m: 2400, // Multiplier for kick force. (start 2400)
-	  xk: 8 // Kick ball X force multiplier. (8) // L/R
-
-	},
-
-	hudHeight: 24,
-	hudColor: 0x68cc3d, // 68cc3d (green) or cccccc or e0ed2f (yellow)
-	currentLvlIndex: 0,
-	currentLvl: levelData[0],
-
-	/*menu: {
-		level: currentLvl.level,
-    //timeClock: null,
-    //time: 0,
-		attempts: currentLvl.attempts,
-		baskets: currentLvl.baskets,
-    accuracy: currentLvl.accuracy,
-    //markText: "",
-
-    //enabled: false
-  },*/
 
 	init() {
 		APP.world = new WHS.World({
-
 		    autoresize: "window",
 		    softbody: true,
-
-		    background: {
-		    	color: APP.bgColor //grey
-		    },
-
-
-		    gravity: {
-		    	y: -200
-		    },  // Physic gravity.
-
-				// level 1 camera
+		    background: { color: bgColor }, //grey
+		    gravity: { y: -200 },  // Physic gravity.
+			// level 1 camera
 		    camera: {
-						x: 0, // (0)
-						y: 200, //APP.basketY/4, (10)
-						z: 80, // Move camera. (80)
-
+				x: 0, // (0)
+				y: 200, //APP.basketY/4, (10)
+				z: 80, // Move camera. (80)
 		        aspect: 45 //(45)
 		    }
-
-				// test camera
-				/*camera: {
-						x: 0,
-						y: 100, //APP.basketY/4,
-						z: -30, // Move camera.
-
-		        aspect: 90
-					}*/
 		});
 
-		// Add raycaster variable
-    //APP.raycaster = new THREE.Raycaster();
-
 		APP.camera = APP.world.getCamera();
-		APP.camera.lookAt(new THREE.Vector3(0, APP.basketY/2, -50));
-		//APP.camera.lookAt(new THREE.Vector3(0, 0, -50));
+		APP.camera.lookAt(new THREE.Vector3(0, basketY/2, -50));
 
 		APP.createScene();
 		APP.addLights();
 		APP.addBasket();
-		//APP.addBall();
-		// test
+
 		APP.addHUD();
-		//addScore();
 		addStartMsg(APP);
-		APP.initEvents(); // 5
-
-    // Start the loop.
-    //APP.keep_ball = keep_ball(APP);
-    //APP.world.addLoop(APP.keep_ball);
-    //APP.keep_ball.start();
-
-		// ADD scoring thing
-
+		APP.initEvents(); 
 
 		APP.world.start();
-
-		//APP.initMenu(); // 6
 	},
 
 	initEvents() {
-	    EVENTS._move(APP);
-	    EVENTS._click(APP);
-	    EVENTS._keypress(APP);
-	    EVENTS._resize(APP);
-			EVENTS._scroll(APP);
+	    EVENTS.move(APP);
+	    EVENTS.click(APP);
+	    EVENTS.keypress(APP);
 	},
 
-  updateCoords(e) {
-	    e.preventDefault();
-
-	    APP.cursor.x = e.touches && e.touches[0] ? e.touches[0].clientX : e.clientX;
-	    APP.cursor.y = e.touches && e.touches[0] ? e.touches[0].clientY : e.clientY;
-	},
-
-	checkKeys(e) {
-    	e.preventDefault();
-			console.log("Key pressed!");
-			console.log(e.code);
-    	if (e.code === "Space") APP.thrown = false;
-			if(e.code === "KeyA") {
-				if(!APP.controlsEnabled){
-						APP.controlsEnabled = true;
-				}
-				else {
-					APP.controlsEnabled = false;
-				}
-			};
-			if(e.code === "ArrowUp" || e.code==="ArrowDown"){
-				if(e.code === "ArrowUp"){
-					console.log(APP.force.m);
-					console.log(APP.hudHeight);
-					APP.force.m += 50;
-					APP.hudHeight += 5;
-					APP.world.remove(APP.hud);
-					APP.addHUD();
-					//APP.hud.resetHeight(APP.hudHeight);
-					//APP.hud.height.set(APP.hud.height+1);
-				}
-				else{
-					APP.force.m -= 50;
-					APP.hudHeight -= 5;
-					APP.world.remove(APP.hud);
-					APP.addHUD();
-					//APP.hud.resetHeight(APP.hudHeight);
-					//APP.hud.height.set(APP.hud.height-1);
-				}
-				if(APP.force.m === 2400){
-					//APP.hud.color.set(0x68cc3d);
-					APP.hudColor = 0x68cc3d;
-					APP.world.remove(APP.hud);
-					APP.addHUD();
-				}
-				else {
-					//APP.hud.color.set(0xe0ed2f);
-					APP.hudColor = 0xe0ed2f;
-					APP.world.remove(APP.hud);
-					APP.addHUD();
-				}
-			}
-			if(e.code === "KeyQ"){
-				console.log("HELP Canvas");
-				var canvas = document.getElementsByTagName('body');
-				console.log(document.body);
-				addScore(APP.currentLvlIndex);
-				/*console.log("HELP camera angle");
-				console.log(getCameraAngle());
-				console.log(getCameraPos());
-				console.log(Math.cos(getCameraAngle().x));
-				console.log(Math.sin(getCameraAngle().x));*/
-				/*console.log("HELP mouse position");
-				console.log(APP.cursor.x);
-				console.log(APP.cursor.xCenter);
-				console.log(APP.cursor.y);
-				console.log(APP.cursor.yCenter);*/
-			}
-			if(e.code === "Enter"){
-				remStartMsg(APP);
-				APP.addBall();
-				APP.currentLvlIndex++;
-				updateAppForLevel();
-				addScore(APP.currentLvlIndex);
-				APP.keep_ball = keep_ball(APP);
-		    APP.world.addLoop(APP.keep_ball);
-		    APP.keep_ball.start();
-				APP.controlsEnabled = true;
-				//reset world
-			}
-			if(e.code === "Equal"){
-				console.log("increment level");
-				if(APP.currentLvlIndex>0 && APP.currentLvlIndex<MAX_LEVELS){
-					APP.currentLvlIndex++;
-					remScore();
-					updateAppForLevel();
-					addScore(APP.currentLvlIndex);
-				}
-				//reset world
-			}
-			if(e.code === "Minus"){
-				console.log("decrement level");
-				if(APP.currentLvlIndex>1 && APP.currentLvlIndex<=MAX_LEVELS){
-					APP.currentLvlIndex--;
-					remScore();
-					updateAppForLevel();
-					addScore(APP.currentLvlIndex);
-				}
-				//reset world
-			}
-  	},
-
-	checkScroll(){
-		e.preventDefault();
-		console.log("SCROLL");
-	},
-
-  detectDoubleTap() {
-		if(APP.controlsEnabled){
-			if (!APP.doubletap) { // Wait for second click.
-	      	APP.doubletap = true;
-
-	      	setTimeout(() => {
-	      	  	APP.doubletap = false;
-	      	}, APP.doubleTapTime);
-
-	      	return false;
-	    } else { // Double tap triggered.
-	    	APP.thrown = false;
-	      	APP.doubletap = true;
-
-	      	return true;
-	    }
-		}
-	},
 
 	createScene() {
 		APP.ground = new WHS.Plane({
@@ -460,7 +371,7 @@ const APP = {
 
 			material: {
 				kind: 'phong',
-				color: APP.bgColor,
+				color: bgColor,
 				map: WHS.texture('textures/floor.png', {repeat: {y: 4, x: 10}}),
 
 			},
@@ -486,7 +397,7 @@ const APP = {
 
 			material: {
 				kind: 'phong',
-				color: APP.bgColor,
+				color: bgColor,
 				map: WHS.texture('textures/background.jpg'), //{repeat: {y: 4, x: 10}}), //offset: {y: 0.3}}),
 
 			},
@@ -501,12 +412,11 @@ const APP = {
 			}
 		});
 
-		//APP.ground.__params.material.map = WHS.texture('textures/floor.png', {repeat: {y: 4, x: 10}});
 		APP.ground.addTo(APP.world);
 		APP.wall.position.y = 180;
-    APP.wall.position.z = -APP.basketDistance-20;
-    APP.wall.rotation.x = 0;
-    APP.wall.addTo(APP.world);
+    	APP.wall.position.z = -basketDistance-20;
+    	APP.wall.rotation.x = 0;
+    	APP.wall.addTo(APP.world);
 
 	},
 
@@ -528,7 +438,6 @@ const APP = {
 		        bottom: -50,
 
 		        far: 150,
-
 		        fov: 90,
 	      	},
 
@@ -553,7 +462,7 @@ const APP = {
 			geometry: {
 				buffer: true,
 				radius: APP.getBasketRadius(),
-				tube: APP.basketTubeRadius,
+				tube: basketTubeRadius,
 				radialSegments: 16,
 				tubularSegments: 16
 			},
@@ -566,7 +475,7 @@ const APP = {
 
 			material: {
 				kind: 'standard',
-				color: APP.basketColor,
+				color: basketColor,
 				metalness: 0.8,
 				roughness: 0.5,
 				emissive: 0xffccff,
@@ -574,7 +483,7 @@ const APP = {
 			},
 
 			pos: {
-				y: APP.basketY,
+				y: basketY,
 				z: APP.getBasketZ()
 			},
 
@@ -590,9 +499,9 @@ const APP = {
 		APP.backboard = new WHS.Box({
 			geometry: {
 				buffer: true,
-				width: 41,
+				width: 40,
 				depth: 1,
-				height: 28
+				height: 25
 			},
 
 			mass: 0,
@@ -600,13 +509,12 @@ const APP = {
 			material: {
 				kind: 'standard',
 				map: WHS.texture('textures/backboard.jpg'),
-				normalScale: new THREE.Vector2(.3, .3),
 				metalness: 0,
-				roughness:0.3
+				roughness:1
 			},
 
 			pos: {
-				y:APP.basketY + 10,
+				y:basketY + 10,
 				z: APP.getBasketZ() - APP.getBasketRadius()
 			}
 		});
@@ -619,7 +527,7 @@ const APP = {
 				radiusTop: 1.5,
 				radiusBottom: 1.5,
 				depth: 2,
-				height: APP.basketY + 35
+				height: basketY + 35
 			},
 
 			shadow: {cast: true},
@@ -629,14 +537,12 @@ const APP = {
 			material: {
 				kind: 'standard',
 				color: 0xcccccc,
-				//map: WHS.texture('textures/backboard.jpg'),
-				normalScale: new THREE.Vector2(.3, .3),
-				metalness: 0,
-				roughness:0.3
+				metalness: .5,
+				roughness:0.8
 			},
 
 			pos: {
-				y: 0, //APP.basketY, // + 10,
+				y: 0, 
 				z: APP.getBasketZ() - APP.getBasketRadius() -2
 			}
 		});
@@ -649,8 +555,8 @@ const APP = {
 				radiusBottom: APP.getBasketRadius() - 3,
 		        height: 15,
 		        openEnded: true,
-		        heightSegments: APP.isMobile ? 2 : 3,
-		        radiusSegments: APP.isMobile ? 8 : 16
+		        heightSegments: 5,
+		        radiusSegments: 16
 		    },
 
       		shadow: {
@@ -659,29 +565,27 @@ const APP = {
 
 			physics: {
 		        pressure: 2000,
-		        friction: 0.02,
+		        friction: 0.05,
 		        margin: 0.5,
-		        anchorHardness: 0.5,
 		        viterations: 2,
 		        piterations: 2,
-		        diterations: 4,
-		        citerations: 0
+		        diterations: 4//,
 		    },
 
 		    mass: 30,
 		    softbody: true,
 
 		    material: {
-		        map: WHS.texture('textures/net4.png', {repeat: {y: 2, x: 3}, offset: {y: 0.3}}), // 0.85, 19
+		        map: WHS.texture('textures/net4.png', {repeat: {y: 2, x: 3.5}, offset: {y: 0.5}}), // 0.85, 19
 		        transparent: true,
-		        opacity: 0.7,
+		        opacity: .7,
 		        kind: 'basic',
 		        side: THREE.DoubleSide,
 		        depthWrite: false
 		    },
 
 		    pos: {
-		        y: APP.basketY - 8,
+		        y: basketY - 8,
 		        z: APP.getBasketZ()
 		    }
 
@@ -699,7 +603,7 @@ const APP = {
 		APP.ball = new WHS.Sphere({
 			geometry: {
 				buffer: true,
-				radius: APP.ballRadius,
+				radius: ballRadius,
 				widthSegments: 32,
 				heightSegments: 32
 			},
@@ -710,8 +614,8 @@ const APP = {
 				kind: 'phong',
 				map: WHS.texture('textures/ball.png'),
 				normalMap: WHS.texture('textures/ball_normal.png'),
-				shininess: 20,
-				reflectivity: 2,
+				shininess: 10,
+				reflectivity: 1,
 				normalScale: new THREE.Vector2(.5,.5)
 			},
 
@@ -724,15 +628,13 @@ const APP = {
 	},
 
 	addHUD(){
-		//const ratio = APP.camera.getNative().getFilmWidth() / APP.camera.getNative().getFilmHeight();
 		APP.hud = new WHS.Cylinder({
 			geometry: {
 				buffer: true,
 				radiusTop: 2,
 				radiusBottom: 2,
 				depth: 2,
-				//height: APP.basketY * (APP.force.m / 4800)
-				height: APP.hudHeight*2
+				height: hudHeight*2
 			},
 
 			shadow: {cast: true},
@@ -741,8 +643,7 @@ const APP = {
 
 			material: {
 				kind: 'standard',
-				color: APP.hudColor, // 68cc3d (green) or cccccc or e0ed2f (yellow)
-				//map: WHS.texture('textures/backboard.jpg'),
+				color: hudColor, // 68cc3d (green) or cccccc or e0ed2f (yellow)
 				normalScale: new THREE.Vector2(.3, .3),
 				metalness: 0,
 				roughness:0.3
@@ -750,154 +651,78 @@ const APP = {
 
 			pos: {
 				y: -20, //APP.basketY, // + 10, or 0
-				//y: ((APP.basketY + 35)/2)-this.height/2,
 				z: APP.getBasketZ() - APP.getBasketRadius() -2
 			},
 		});
 
 		APP.hud.addTo(APP.world);
-		//APP.ProgressLoader.step();
-		//var hudTexture = new THREE.Texture(hudCanvas);
 
 	},
 
 	throwBall(e) {
-	    e.preventDefault();
+	    var mult = force.m;
+	    if (currentLvlIndex == 3)
+	    	mult*=1.1;
 
-	    if (!APP.detectDoubleTap() && APP.controlsEnabled && !APP.thrown) {
-				const ang = getCameraAngle();
-				const pos = getCameraPos();
+	    if (!detectDoubleTap() && controlsEnabled && !thrown) {
+			const ang = getCameraAngle();
+			const pos = getCameraPos();
 
-				const F_LR = APP.force.xk * (APP.cursor.x - APP.cursor.xCenter);
-				const F_UP = APP.force.y * APP.force.m;
-				const F_FORWARD = APP.force.z * APP.force.m;
+			const F_X = force.xk * (cursor.x - cursor.xCenter);
+			const F_Y = force.y * mult;
+			const F_Z = force.z * mult;
 
-				const F_LR_ADJ = F_LR*Math.cos(ang.x) - F_FORWARD*Math.sin(ang.x);
-				const F_UP_ADJ = F_UP;
-				const F_FORWARD_ADJ = F_FORWARD*Math.cos(ang.x) - F_LR*Math.sin(ang.x);
+			const F_X_ADJ = F_X*Math.cos(ang.x) - F_Z*Math.sin(ang.x);
+			const F_Y_ADJ = F_Y;
+			const F_Z_ADJ = F_Z*Math.cos(ang.x) - F_X*Math.sin(ang.x);
 
-	    	const vector = new THREE.Vector3(
-	      	//APP.force.xk * (APP.cursor.x - APP.cursor.xCenter),
-	      	//APP.force.y * APP.force.m,
-	      	//APP.force.z * APP.force.m
-					F_LR_ADJ,F_UP_ADJ,F_FORWARD_ADJ
-      	);
+	    	const vector = new THREE.Vector3( F_X_ADJ, F_Y_ADJ, F_Z_ADJ );
 
-      	APP.ball.setLinearVelocity(new THREE.Vector3(0, 0, 0)); // Reset gravity affect.
+      		APP.ball.setLinearVelocity(new THREE.Vector3(0, 0, 0)); // Reset gravity affect.
 
-      	APP.ball.applyCentralImpulse(vector);
+      		APP.ball.applyCentralImpulse(vector);
 
-      	vector.multiplyScalar(10 / APP.force.m)
-      	vector.y = vector.x;
-      	vector.x = APP.force.y;
+      		vector.multiplyScalar(10 / force.m)
+      		vector.y = vector.x;
+      		vector.x = force.y;
 		    vector.z = 0;
 
 		    APP.ball.setAngularVelocity(vector); // Reset gravity affect.
-		    APP.thrown = true;
-				levelData[APP.currentLvlIndex].attempts++;
-				levelData[APP.currentLvlIndex].accuracy = levelData[APP.currentLvlIndex].attempts / levelData[APP.currentLvlIndex].baskets;
-				remScore();
-				addScore(APP.currentLvlIndex);
+		    thrown = true;
+			levelData[currentLvlIndex].attempts++;
+			levelData[currentLvlIndex].accuracy = levelData[currentLvlIndex].baskets / levelData[currentLvlIndex].attempts * 100;
+			remScore();
+			addScore(currentLvlIndex);
 	    }
 	 },
 
 	keepBall() {
-	    const cursor = APP.cursor;
-			const ang = getCameraAngle();
-			const pos = getCameraPos();
+		//reset goal
+		goal = false;
+		const ang = getCameraAngle();
+		const pos = getCameraPos();
 
-	    //const x = (cursor.x - cursor.xCenter) / window.innerWidth * 32;
-	    //const y = - (cursor.y - cursor.yCenter) / window.innerHeight * 32;
-			const x = (cursor.x - cursor.xCenter) / window.innerWidth * 32;
-			const y = - (cursor.y - cursor.yCenter) / window.innerHeight * 32;
+		const x = (cursor.x - cursor.xCenter) / window.innerWidth * 32;
+		const y = - (cursor.y - cursor.yCenter) / window.innerHeight * 32;
 
 	    APP.ball.position.set(pos.x+80*Math.sin(ang.x)+x*Math.cos(ang.x), y, pos.z-80*Math.cos(ang.x)+x*Math.sin(ang.x));
 	},
 
 	onGoal(){
-		levelData[APP.currentLvlIndex].baskets++;
-		levelData[APP.currentLvlIndex].accuracy = levelData[APP.currentLvlIndex].attempts / levelData[APP.currentLvlIndex].baskets;
-		remScore();
-		addScore(APP.currentLvlIndex);
+		if(!goal){
+			goal = true;
+			levelData[currentLvlIndex].baskets++;
+			levelData[currentLvlIndex].accuracy = levelData[currentLvlIndex].baskets / levelData[currentLvlIndex].attempts * 100;
+			remScore();
+			addScore(currentLvlIndex);
+		}
 	}
 };
 
-const EVENTS = {
-	_click(APP) {
-
-    window.addEventListener('mouseup', APP.throwBall);
-    window.addEventListener('mouseup', () => {
-      const el = APP.world.getRenderer().domElement;
-
-      if (!el.fullscreenElement && APP.isMobile) {
-        if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
-        if (el.mozRequestFullscreen) el.mozRequestFullscreen();
-        if (el.msRequestFullscreen) el.msRequestFullscreen();
-        if (el.requestFullscreen) el.requestFullscreen();
-      }
-    });
-  },
-
-  _move(APP) {
-    ['mousemove', 'touchmove'].forEach((e) => {
-      window.addEventListener(e, APP.updateCoords);
-    });
-  },
-
-  _keypress(APP) {
-    window.addEventListener('keypress', APP.checkKeys);
-  },
-
-  _resize(APP) {
-    APP.cursor.xCenter = window.innerWidth / 2;
-    APP.cursor.yCenter = window.innerHeight / 2;
-
-    window.addEventListener('resize', () => {
-      const style = document.querySelector('.whs canvas').style;
-
-      style.width = '100%';
-      style.height = '100%';
-    });
-  },
-
-	_scroll(APP){
-		window.addEventListener('scroll',APP.checkScroll);
-	}
-
-}
-
-const keep_ball = (APP) => {
-  return new WHS.Loop(() => {
-    if (!APP.thrown) APP.keepBall();
-
-    const BLpos = APP.ball.position;
-    const BSpos = APP.basket.position
-
-    if (BLpos.distanceTo(BSpos) < APP.basketGoalDiff
-      && Math.abs(BLpos.y - BSpos.y + APP.basketYDeep()) < APP.basketYGoalDiff()
-      && !APP.goal) APP.onGoal(BLpos, BSpos);
-  });
-}
 
 
+
+
+//initialize application
 APP.init();
 
-console.log( APP.world);
-
-/*
-
-var canvas = document.getElementsByTagName('body');
-console.log(canvas);
-
-/*
-var para = document.createElement('p');//, 'para');
-var node = document.createTextNode("This is new.");
-para.appendChild(node);
-canvas.appendChild(para);
-//canvas.height = 80%;
-var ctx = canvas.getContext('2d');
-ctx.font = "30px Arial";
-ctx.fillText("Hello World", 0,0);
- // Start animations and physics simulation.
-
-*/
