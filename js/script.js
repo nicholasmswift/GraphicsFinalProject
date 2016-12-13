@@ -215,7 +215,7 @@ const cursor = {
 const force = {
 	y: 8, // Kick ball Y force. (8)
     z: -2.5, // Kick ball Z force. (-2.5) // FRONTWARD
-    m: 2500, // Multiplier for kick force. (start 2400)
+    m: 1250, // Multiplier for kick force. (start 2400)
   	xk: 8 // Kick ball X force multiplier. (8) // L/R
 }
 
@@ -566,10 +566,10 @@ const APP = {
 			physics: {
 		        pressure: 2000,
 		        friction: 0.05,
-		        margin: 0.5,
-		        viterations: 2,
-		        piterations: 2,
-		        diterations: 4//,
+		        margin: 0.5//,
+		        //viterations: 2,
+		        //piterations: 2,
+		        //diterations: 4
 		    },
 
 		    mass: 30,
@@ -580,8 +580,8 @@ const APP = {
 		        transparent: true,
 		        opacity: .7,
 		        kind: 'basic',
-		        side: THREE.DoubleSide,
-		        depthWrite: false
+		        side: THREE.DoubleSide//,
+		        //depthWrite: false
 		    },
 
 		    pos: {
@@ -594,7 +594,7 @@ const APP = {
 		APP.net.addTo(APP.world);
 
 		for (let i = 0; i < 16; i++) {
-        	APP.net.appendAnchor(APP.world, APP.basket, i, 0.8, true);
+        	APP.net.appendAnchor(APP.world, APP.basket, i, .8, true);
       	}
 
 	},
@@ -608,19 +608,17 @@ const APP = {
 				heightSegments: 32
 			},
 
-			mass: 120,
+			mass: 60,
 
 			material: {
 				kind: 'phong',
 				map: WHS.texture('textures/ball.png'),
-				normalMap: WHS.texture('textures/ball_normal.png'),
-				shininess: 10,
-				reflectivity: 1,
-				normalScale: new THREE.Vector2(.5,.5)
+				normalMap: WHS.texture('textures/ball_normal.png')
+
 			},
 
 			physics: {
-				restitution: 3
+				restitution: 2.5
 			}
 		});
 
