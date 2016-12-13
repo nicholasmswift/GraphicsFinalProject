@@ -239,7 +239,7 @@ const EVENTS = {
   	},
 
   	move(APP) {
-    	['mousemove', 'touchmove'].forEach((e) => {
+    	['mousemove'].forEach((e) => {
       		window.addEventListener(e, updateCoords);
     	});
   	},
@@ -251,8 +251,10 @@ const EVENTS = {
 
 function updateCoords(e) {
 	//e.preventDefault();
-	cursor.x = e.touches && e.touches[0] ? e.touches[0].clientX : e.clientX;
-	cursor.y = e.touches && e.touches[0] ? e.touches[0].clientY : e.clientY;
+	//cursor.x = e.touches && e.touches[0] ? e.touches[0].clientX : e.clientX;
+	//cursor.y = e.touches && e.touches[0] ? e.touches[0].clientY : e.clientY;
+	cursor.x = e.clientX;
+	cursor.y = e.clientY;
 }
 
 function checkKeys(e) {
